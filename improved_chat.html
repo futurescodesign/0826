@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="Design Thinking AI - 專業的人工智能對話平台，支援多平台使用">
+<meta name="keywords" content="AI,人工智能,智能助手,聊天機器人,跨平台,設計思維">
+<meta name="author" content="Design Thinking AI Team">
+<meta name="theme-color" content="#1e3a8a">
+
+<title>Design Thinking AI - 智能對話助手</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+TC:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+body {
+font-family: 'Inter', 'Noto Sans TC', system-ui, sans-serif;
+}
+
+.chat-container {
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+min-height: 100vh;
+}
+
+.chat-bubble {
+max-width: 80%;
+word-wrap: break-word;
+border-radius: 18px;
+padding: 12px 16px;
+margin: 8px 0;
+position: relative;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.chat-bubble.user {
+background: linear-gradient(135deg, #4f46e5, #7c3aed);
+color: white;
+margin-left: auto;
+margin-right: 0;
+border-radius: 18px 18px 6px 18px;
+}
+
+.chat-bubble.bot {
+background: white;
+color: #1e293b;
+border-radius: 18px 18px 18px 6px;
+margin-right: auto;
+margin-left: 0;
+border: 2px solid #3b82f6;
+}
+
+.message-input {
+background: rgba(255, 255, 255, 0.1);
+backdrop-filter: blur(10px);
+border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidebar {
+background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+transform: translateX(-100%);
+transition: transform 0.3s ease;
+}
+
+.sidebar.open {
+transform: translateX(0);
+}
+
+.typing-indicator {
+display: flex;
+align-items: center;
+gap: 4px;
+}
+
+.typing-dot {
+width: 8px;
+height: 8px;
+background: #3b82f6;
+border-radius: 50%;
+animation: typing 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+animation-delay: 0.4s;
+}
+
+@keyframes typing {
+0%, 60%, 100% {
+transform: translateY(0);
+opacity: 0.4;
+}
+30% {
+transform: translateY(-10px);
+opacity: 1;
+}
+}
+
+.file-preview {
+background: rgba(255, 255, 255, 0.1);
+border-radius: 12px;
+padding: 12px;
+margin: 8px 0;
+border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.conversation-item {
+padding: 12px 16px;
+margin: 4px 0;
+border-radius: 12px;
+background: rgba(255, 255, 255, 0.1);
+cursor: pointer;
+transition: all 0.2s ease;
+}
+
+.conversation-item:hover {
+background: rgba(255, 255, 255, 0.2);
+}
+
+.conversation-item.active {
+background: rgba(255, 255, 255, 0.3);
+border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.scrollbar-thin {
+scrollbar-width: thin;
+scrollbar-color: rgba(59, 130, 246, 0.6) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+background: rgba(59, 130, 246, 0.6);
+border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+background: rgba(59, 130, 246, 0.8);
+}
+</style>
+</head>
+
+<body class="h-full bg-gray-100">
+<div class="chat-container flex h-screen">
+<!-- Sidebar -->
+<div id="sidebar" class="sidebar fixed inset-y-0 left-0 w-80 z-50 flex flex-col">
+<!-- Header -->
+<div class="p-6 border-b border-white border-opacity-20">
+<div class="flex items-center justify-between">
+<h2 class="text-xl font-bold text-white">💬 對話紀錄</h2>
+<button id="closeSidebar" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+</svg>
+</button>
+</div>
+</div>
+
+<!-- New Chat Button -->
+<div class="p-4">
+<button id="newChatBtn" class="w-full bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+</svg>
+<span>新對話</span>
+</button>
+</div>
+
+<!-- Conversation List -->
+<div class="flex-1 overflow-y-auto scrollbar-thin px-4">
+<div id="conversationList">
+<!-- Conversations will be loaded here -->
+</div>
+</div>
+
+<!-- Footer -->
+<div class="p-4 border-t border-white border-opacity-20">
+<button id="backToHomeBtn" class="w-full bg-transparent border-2 border-white border-opacity-50 hover:bg-white hover:bg-opacity-20 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200">
+返回主頁
+</button>
+</div>
+</div>
+
+<!-- Sidebar Overlay -->
+<div id="sidebarOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+
+<!-- Main Chat Area -->
+<div class="flex-1 flex flex-col ml-0">
+<!-- Chat Header -->
+<header class="bg-white shadow-sm p-4 flex items-center justify-between">
+<button id="openSidebar" class="text-gray-600 hover:bg-gray-100 p-2 rounded-lg">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+</svg>
+</button>
+
+<div class="flex items-center space-x-3">
+<div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+</svg>
+</div>
+<div>
+<h1 class="text-lg font-bold text-gray-800">Design Thinking AI</h1>
+<p class="text-sm text-gray-600">智能對話助手</p>
+</div>
+</div>
+
+<div class="flex items-center space-x-2">
+<button id="clearChatBtn" class="text-gray-600 hover:bg-gray-100 p-2 rounded-lg" title="清除對話">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+</svg>
+</button>
+</div>
+</header>
+
+<!-- Messages Area -->
+<div id="messagesContainer" class="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4">
+<!-- Welcome Message -->
+<div class="flex justify-start">
+<div class="chat-bubble bot">
+<div class="flex items-center space-x-2 mb-2">
+<div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+</svg>
+</div>
+<span class="text-sm font-medium text-blue-600">Design Thinking AI</span>
+</div>
+<p class="text-gray-800">🤖 您好！我是Design Thinking AI助手。我運用設計思維的五個步驟來幫助您解決問題：</p>
+<ul class="mt-2 text-sm text-gray-700 space-y-1">
+<li>• 同理（Empathize）</li>
+<li>• 定義（Define）</li>
+<li>• 發想（Ideate）</li>
+<li>• 原型（Prototype）</li>
+<li>• 測試（Test）</li>
+</ul>
+<p class="mt-2 text-gray-800">請告訴我您需要什麼幫助？</p>
+</div>
+</div>
+
+<!-- Typing Indicator -->
+<div id="typingIndicator" class="flex justify-start hidden">
+<div class="chat-bubble bot">
+<div class="typing-indicator">
+<div class="typing-dot"></div>
+<div class="typing-dot"></div>
+<div class="typing-dot"></div>
+<span class="ml-2 text-sm text-gray-600">AI正在思考...</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Input Area -->
+<div class="bg-white border-t border-gray-200 p-4">
+<!-- File Upload Area -->
+<div id="fileUploadArea" class="hidden mb-4">
+<div class="file-preview">
+<div class="flex items-center justify-between mb-2">
+<h4 class="text-sm font-medium text-gray-700">📎 已選擇檔案</h4>
+<button id="closeFileUpload" class="text-gray-500 hover:text-gray-700">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+</svg>
+</button>
+</div>
+<div id="fileList" class="space-y-2">
+<!-- Files will be listed here -->
+</div>
+</div>
+</div>
+
+<!-- Message Input Form -->
+<form id="chatForm" class="flex items-end space-x-3">
+<div class="flex-1 relative">
+<textarea 
+id="messageInput" 
+placeholder="輸入您的訊息..." 
+class="w-full p-3 border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+rows="1"
+></textarea>
+</div>
+
+<div class="flex items-center space-x-2">
+<!-- File Upload Button -->
+<button type="button" id="fileUploadBtn" class="p-3 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+</svg>
+</button>
+
+<!-- Send Button -->
+<button 
+type="submit" 
+id="sendBtn"
+disabled
+class="p-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl transition-colors"
+>
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+</svg>
+</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+
+<!-- Hidden File Input -->
+<input type="file" id="fileInput" class="hidden" multiple accept=".txt,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.mp4,.mov">
+
+<script>
+// Chat Application Class
+class ChatApp {
+constructor() {
+this.conversations = this.loadConversations();
+this.currentConversationId = this.loadCurrentConversationId();
+this.uploadedFiles = [];
+this.isTyping = false;
+this.init();
+}
+
+init() {
+this.setupEventListeners();
+this.setupAutoResize();
+this.loadConversations();
+this.updateSendButton();
+}
+
+setupEventListeners() {
+// Sidebar controls
+document.getElementById('openSidebar').addEventListener('click', () => this.openSidebar());
+document.getElementById('closeSidebar').addEventListener('click', () => this.closeSidebar());
+document.getElementById('sidebarOverlay').addEventListener('click', () => this.closeSidebar());
+
+// Chat controls
+document.getElementById('chatForm').addEventListener('submit', (e) => this.handleSendMessage(e));
+document.getElementById('messageInput').addEventListener('input', () => this.updateSendButton());
+document.getElementById('messageInput').addEventListener('keydown', (e) => this.handleKeyDown(e));
+
+// File upload
+document.getElementById('fileUploadBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', (e) => this.handleFileUpload(e));
+document.getElementById('closeFileUpload').addEventListener('click', () => this.clearFiles());
+
+// Conversation management
+document.getElementById('newChatBtn').addEventListener('click', () => this.createNewConversation());
+document.getElementById('clearChatBtn').addEventListener('click', () => this.clearCurrentChat());
+document.getElementById('backToHomeBtn').addEventListener('click', () => this.goToHome());
+
+// Responsive
+window.addEventListener('resize', () => this.handleResize());
+}
+
+setupAutoResize() {
+const textarea = document.getElementById('messageInput');
+textarea.addEventListener('input', () => {
+textarea.style.height = 'auto';
+textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+});
+}
+
+handleSendMessage(e) {
+e.preventDefault();
+const messageInput = document.getElementById('messageInput');
+const message = messageInput.value.trim();
+
+if (!message && this.uploadedFiles.length === 0) return;
+
+// Add user message
+this.addMessage(message, 'user');
+
+// Clear input
+messageInput.value = '';
+messageInput.style.height = 'auto';
+this.updateSendButton();
+
+// Clear files
+this.clearFiles();
+
+// Simulate AI response
+this.simulateAIResponse(message);
+}
+
+addMessage(content, sender, files = []) {
+const messagesContainer = document.getElementById('messagesContainer');
+const typingIndicator = document.getElementById('typingIndicator');
+typingIndicator.classList.add('hidden');
+
+const messageDiv = document.createElement('div');
+messageDiv.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+
+const bubbleDiv = document.createElement('div');
+bubbleDiv.className = `chat-bubble ${sender}`;
+
+if (sender === 'bot') {
+bubbleDiv.innerHTML = `
+<div class="flex items-center space-x-2 mb-2">
+<div class="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+</svg>
+</div>
+<span class="text-sm font-medium text-blue-600">Design Thinking AI</span>
+</div>
+<p class="text-gray-800">${content}</p>
+`;
+} else {
+let messageContent = `<p class="text-white">${content}</p>`;
+if (files.length > 0) {
+messageContent += `<div class="mt-2 text-sm text-blue-200">📎 ${files.length} 個檔案</div>`;
+}
+bubbleDiv.innerHTML = messageContent;
+}
+
+messageDiv.appendChild(bubbleDiv);
+messagesContainer.appendChild(messageDiv);
+
+// Scroll to bottom
+messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+// Save message
+this.saveMessage(content, sender === 'user', files);
+}
+
+simulateAIResponse(userMessage) {
+this.showTypingIndicator();
+
+setTimeout(() => {
+this.hideTypingIndicator();
+const responses = [
+"這是一個很好的問題！讓我運用設計思維來幫您分析...",
+"根據您提到的情況，我建議我們從同理心的角度開始思考...",
+"很有趣的觀點！讓我們用設計思維的五個步驟來探索這個問題...",
+"我理解您的需求。讓我們一起來定義問題的核心...",
+"基於您的描述，我認為我們可以從以下幾個方向來發想解決方案..."
+];
+const response = responses[Math.floor(Math.random() * responses.length)];
+this.addMessage(response, 'bot');
+}, 1500 + Math.random() * 1000);
+}
+
+showTypingIndicator() {
+this.isTyping = true;
+document.getElementById('typingIndicator').classList.remove('hidden');
+const messagesContainer = document.getElementById('messagesContainer');
+messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+hideTypingIndicator() {
+this.isTyping = false;
+document.getElementById('typingIndicator').classList.add('hidden');
+}
+
+handleKeyDown(e) {
+if (e.key === 'Enter' && !e.shiftKey) {
+e.preventDefault();
+document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+}
+}
+
+updateSendButton() {
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const hasText = messageInput.value.trim().length > 0;
+const hasFiles = this.uploadedFiles.length > 0;
+sendBtn.disabled = !hasText && !hasFiles;
+}
+
+handleFileUpload(e) {
+const files = Array.from(e.target.files);
+this.uploadedFiles = [...this.uploadedFiles, ...files];
+this.showFileUpload();
+this.updateSendButton();
+e.target.value = '';
+}
+
+showFileUpload() {
+const fileUploadArea = document.getElementById('fileUploadArea');
+const fileList = document.getElementById('fileList');
+fileUploadArea.classList.remove('hidden');
+fileList.innerHTML = '';
+
+this.uploadedFiles.forEach((file, index) => {
+const fileItem = document.createElement('div');
+fileItem.className = 'flex items-center justify-between p-2 bg-gray-50 rounded-lg';
+fileItem.innerHTML = `
+<div class="flex items-center space-x-2">
+<svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+</svg>
+<span class="text-sm text-gray-700">${file.name}</span>
+</div>
+<button onclick="chatApp.removeFile(${index})" class="text-red-500 hover:text-red-700">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+</svg>
+</button>
+`;
+fileList.appendChild(fileItem);
+});
+}
+
+removeFile(index) {
+this.uploadedFiles.splice(index, 1);
+if (this.uploadedFiles.length === 0) {
+this.clearFiles();
+} else {
+this.showFileUpload();
+}
+this.updateSendButton();
+}
+
+clearFiles() {
+this.uploadedFiles = [];
+document.getElementById('fileUploadArea').classList.add('hidden');
+this.updateSendButton();
+}
+
+createNewConversation() {
+const newConversation = {
+id: Date.now().toString(),
+name: `對話 ${this.conversations.length + 1}`,
+messages: [],
+createdAt: new Date().toISOString()
+};
+
+this.conversations.unshift(newConversation);
+this.currentConversationId = newConversation.id;
+this.saveConversations();
+this.loadConversations();
+this.clearCurrentChat();
+this.closeSidebar();
+}
+
+clearCurrentChat() {
+const messagesContainer = document.getElementById('messagesContainer');
+const welcomeMessage = messagesContainer.querySelector('.chat-bubble.bot');
+messagesContainer.innerHTML = '';
+if (welcomeMessage) {
+messagesContainer.appendChild(welcomeMessage);
+}
+}
+
+loadConversations() {
+const conversationList = document.getElementById('conversationList');
+conversationList.innerHTML = '';
+
+this.conversations.forEach(conversation => {
+const item = document.createElement('div');
+item.className = `conversation-item ${conversation.id === this.currentConversationId ? 'active' : ''}`;
+item.innerHTML = `
+<div>
+<div class="font-medium text-white text-sm">${conversation.name}</div>
+<div class="text-xs text-blue-200">${new Date(conversation.createdAt).toLocaleDateString()}</div>
+</div>
+`;
+
+item.addEventListener('click', () => {
+this.currentConversationId = conversation.id;
+this.saveCurrentConversationId();
+this.loadConversations();
+this.loadConversation(conversation);
+this.closeSidebar();
+});
+
+conversationList.appendChild(item);
+});
+}
+
+loadConversation(conversation) {
+this.clearCurrentChat();
+if (conversation.messages && conversation.messages.length > 0) {
+conversation.messages.forEach(message => {
+this.addMessage(message.content, message.sender === 'user' ? 'user' : 'bot');
+});
+}
+}
+
+saveMessage(content, isUser, files = []) {
+const conversation = this.conversations.find(c => c.id === this.currentConversationId);
+if (conversation) {
+conversation.messages.push({
+content,
+sender: isUser ? 'user' : 'bot',
+timestamp: new Date().toISOString(),
+files
+});
+conversation.lastUpdated = new Date().toISOString();
+this.saveConversations();
+}
+}
+
+saveConversations() {
+localStorage.setItem('chatbot_conversations', JSON.stringify(this.conversations));
+}
+
+loadConversations() {
+const saved = localStorage.getItem('chatbot_conversations');
+this.conversations = saved ? JSON.parse(saved) : [];
+if (this.conversations.length === 0) {
+this.createNewConversation();
+}
+}
+
+saveCurrentConversationId() {
+localStorage.setItem('chatbot_current_conversation', this.currentConversationId);
+}
+
+loadCurrentConversationId() {
+return localStorage.getItem('chatbot_current_conversation') || null;
+}
+
+openSidebar() {
+document.getElementById('sidebar').classList.add('open');
+document.getElementById('sidebarOverlay').classList.remove('hidden');
+}
+
+closeSidebar() {
+document.getElementById('sidebar').classList.remove('open');
+document.getElementById('sidebarOverlay').classList.add('hidden');
+}
+
+handleResize() {
+if (window.innerWidth >= 768) {
+this.closeSidebar();
+}
+}
+
+goToHome() {
+window.location.href = 'index.html';
+}
+}
+
+// Initialize the chat application
+const chatApp = new ChatApp();
+</script>
+</body>
+</html>
